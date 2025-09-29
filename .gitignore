@@ -1,0 +1,5 @@
+build/
+build.clang/
+sdkconfig
+sdkconfig.old
+.cache/
