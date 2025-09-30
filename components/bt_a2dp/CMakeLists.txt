@@ -1,0 +1,12 @@
+idf_component_register(
+    SRCS
+        "bt_a2dp.c"
+    INCLUDE_DIRS
+        "include"
+    PRIV_REQUIRES
+        bt_core
+    REQUIRES
+        bt
+        nvs_flash
+        esp_event
+)

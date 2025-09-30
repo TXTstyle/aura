@@ -1,0 +1,11 @@
+config BT_A2DP_HOST_NAME
+    string "BT A2DP Host Name"
+    default "Aura Player"
+    help
+        Set the Bluetooth A2DP host name.
+
+config BT_A2DP_REMOTE_NAME
+    string "BT A2DP Remote Name"
+    default "Speaker"
+    help
+        Set the Bluetooth A2DP remote name.

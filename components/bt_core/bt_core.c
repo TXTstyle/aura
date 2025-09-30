@@ -64,38 +64,72 @@ static bool bt_core_send_msg(bt_ctx_t* ctx, bt_msg_t* msg) {
     return true;
 }
 
-bool bt_core_dispatch(bt_ctx_t* ctx, bt_core_cb_t cback, uint16_t event) {
-    ESP_LOGD("BT_CORE", "%s event: 0x%x", __func__, event);
+// Dispatch a message to the Bluetooth core task.
+// cback: Callback function to handle the event.
+// event: Event identifier.
+// param_len: Length of event parameters, in bytes.
+bool bt_core_dispatch(bt_ctx_t* ctx, bt_core_cb_t cback, uint16_t event,
+                      void* params, uint32_t param_len) {
+    ESP_LOGD("BT_CORE", "%s event: 0x%x, param len: %d", __func__, event,
+             param_len);
 
     bt_msg_t msg;
     memset(&msg, 0, sizeof(bt_msg_t));
 
-    msg.id = 0; // Not used in this example
+    // FIXME: Use proper signal
+    msg.id = 0;
     msg.event = event;
     msg.cb = cback;
+
+    if (param_len != 0 && params) {
+        if ((msg.param = malloc(param_len)) != NULL) {
+            memcpy(msg.param, params, param_len);
+        } else {
+            ESP_LOGE("BT_CORE", "%s malloc failed", __func__);
+            return false;
+        }
+    }
 
     return bt_core_send_msg(ctx, &msg);
 }
 
 static void bt_core_task_handler(void* arg) {
     bt_ctx_t* ctx = (bt_ctx_t*)arg;
-    int event;
-    for(;;) {
-        if (pdTRUE == xQueueReceive(ctx->event_queue, &event, (TickType_t)portMAX_DELAY)) {
+    bt_msg_t event;
+    for (;;) {
+        if (pdTRUE == xQueueReceive(ctx->event_queue, &event,
+                                    (TickType_t)portMAX_DELAY)) {
             ESP_LOGI("BT_CORE", "Received event: %d", event);
-            // Handle events here
+
+            switch (event.id) {
+            case 0: // FIXME: Use proper signal
+                if (event.cb) {
+                    event.cb(ctx, event.event, event.param);
+                }
+            default:
+                ESP_LOGW("BT_CORE", "%s, unhandled signal: %d", __func__,
+                         event.id);
+                break;
+            }
+
+            if (event.param) {
+                free(event.param);
+            }
         }
     }
 }
 
 void bt_core_start(bt_ctx_t* ctx) {
     ctx->event_queue = xQueueCreate(10, sizeof(bt_msg_t));
-    xTaskCreate(bt_core_task_handler, "BtCoreTask", 2048, ctx, 10, &ctx->event_task);
+    xTaskCreate(bt_core_task_handler, "BtCoreTask", 2048, ctx, 10,
+                &ctx->event_task);
     ESP_LOGI("BT_CORE", "Bluetooth core started");
 }
 
-
 int bt_deinit(bt_ctx_t* ctx) {
+    if (ctx != nullptr)
+        free(ctx);
+
     if (esp_bluedroid_disable() != ESP_OK) {
         ESP_LOGE("BT_AV", "%s disable bluedroid failed", __func__);
         return 1;
